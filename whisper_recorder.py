@@ -10,6 +10,8 @@ import audioop
 import datetime
 import threading
 import psutil
+import traceback
+import datetime
 import os
 
 # UI
@@ -167,11 +169,12 @@ class AudioRecorder:
         self.audio_list = tk.Listbox(audio_list_frame, font=("Arial", 16), fg="white", selectbackground="green")
         self.audio_list.configure(background="#3d3d3d")
         self.audio_list.bind("<Button-3>", self.audio_list_popup)
-        self.audio_list.pack(side='left', fill='both', expand=True, padx=5, pady=5)
+        self.audio_list.pack(side='left', fill='both', expand=True, padx=0, pady=0)
         self.update_audio_list()
 
         # Sound Wave Viz
         self.figure, self.ax = plt.subplots()
+        self.figure.subplots_adjust(left=0, right=1, bottom=0, top=1)
         self.graph = FigureCanvasTkAgg(self.figure, main_frame)
         self.line, = self.ax.plot(np.random.rand(self.CHUNK), color='white', linewidth=3)
         self.ax.set_facecolor('#3d3d3d')
@@ -181,12 +184,12 @@ class AudioRecorder:
         self.ax.set_xticks([])
         self.ax.set_yticks([])
 
-        # Repack the graph to make sure it does not take all space
-        self.graph.get_tk_widget().pack(side='right', fill='both', expand=True)
+        # Repack the graph to make sure it fills all available space
+        self.graph.get_tk_widget().pack(side='left', fill='both', expand=True)
 
         # Transcribe button
         self.transcribe_button = ttk.Button(root, text='Transcribe', command=self.transcribe_selected_audio)
-        self.transcribe_button.pack(side='bottom', fill='x', padx=5, pady=5)
+        self.transcribe_button.pack(side='bottom', fill='x', padx=0, pady=0)
         
 
 
@@ -200,6 +203,12 @@ class AudioRecorder:
         p.terminate()
         return devices
 
+    def log_error(self, error):
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        error_message = f"[{timestamp}] {str(error)}"
+        with open("log.txt", "a") as file:
+            file.write(error_message + "\n")
+
     def select_device(self, device):
         self.update_status(f"Device switched to {device}")
 
@@ -211,6 +220,10 @@ class AudioRecorder:
     def update_status(self, status):
         self.status_var.set(status)
 
+    def reset_plot(self):
+        straight_line = np.zeros(self.CHUNK)
+        self.line.set_ydata(straight_line)
+        self.figure.canvas.draw()
 
     def plot_data(self, data):
         data_int = np.frombuffer(data, dtype=np.int16)
@@ -225,7 +238,6 @@ class AudioRecorder:
             data_int_smooth = data_int_smooth[:self.CHUNK]
         self.line.set_ydata(data_int_smooth)
         self.figure.canvas.draw()
-
 
     def audio_list_popup(self, event):
         try:
@@ -271,12 +283,13 @@ class AudioRecorder:
 
     def toggle_recording(self):
         if self.recording:
-            self.recording_indicator.itemconfig(self.recording_dot, fill='gray')
+            self.recording_indicator.itemconfig(self.recording_dot, fill='white')
             self.recording = False
             self.record_button.config(text='Record')
             self.save_audio()
             self.update_audio_list()
             self.line.set_color('gray')
+            self.reset_plot()
         else:
             self.filename = f'audio_{str(self.record_id).zfill(3)}.wav'
             self.record_id += 1
@@ -361,7 +374,9 @@ class AudioRecorder:
         try:
             model = whisper.load_model(self.model['name'])
         except Exception as e:
-            self.update_status(f"Error loading model: {e}")
+            error_message = f"Error loading model: {e}"
+            self.update_status(f"Error loading model: read log.txt at root")
+            self.log_error(error_message)
             return
         result = model.transcribe(self.filename)
         self.save_transcript(result)
