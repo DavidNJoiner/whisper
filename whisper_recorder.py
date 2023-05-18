@@ -28,6 +28,7 @@ class AudioRecorder:
         self.root.title("Whisper Recorder")
         self.root.geometry("1400x800")
         self.root.bind('<Button-1>', self.hide_audio_list_popup)
+        self.root.bind('<Escape>', lambda event: self.root.quit())
         
         # Styling
         style = ttk.Style()
@@ -69,6 +70,7 @@ class AudioRecorder:
         menubar = tk.Menu(root)
         filemenu = tk.Menu(menubar, tearoff=0)
         filemenu.add_command(label="Upload Audio", command=self.upload_wav)
+        filemenu.add_command(label="Exit", command=self.root.quit)
         devicemenu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=filemenu)
         menubar.add_cascade(label="Devices", menu=devicemenu)
@@ -222,7 +224,7 @@ class AudioRecorder:
 
     def reset_plot(self):
         straight_line = np.zeros(self.CHUNK)
-        self.line.set_ydata(straight_line)
+        self.line.set_ydata(0)
         self.figure.canvas.draw()
 
     def plot_data(self, data):
