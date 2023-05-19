@@ -16,6 +16,7 @@ import shutil
 import traceback
 import datetime
 import os
+import sys
 
 # UI
 import tkinter as tk
@@ -399,7 +400,13 @@ class AudioRecorder:
             file.write(transcript["text"])
         self.update_status(f"Transcript saved as {transcript_filename} in the current directory.")
 
+
+def exit_application():
+        sys.exit(0)
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = AudioRecorder(root)
+    root.protocol("WM_DELETE_WINDOW", exit_application)
+    root.mainloop()
     root.mainloop()
