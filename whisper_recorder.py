@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from scipy.signal import savgol_filter
 import tkinter.messagebox as messagebox
+from tkinter import simpledialog
 import pyaudio
 import wave
 import audioop
@@ -174,6 +175,8 @@ class AudioRecorder:
         self.audio_list = tk.Listbox(audio_list_frame, font=("Arial", 16), fg="white", selectbackground="green")
         self.audio_list.configure(background="#3d3d3d")
         self.audio_list.bind("<Button-3>", self.audio_list_popup)
+        self.audio_list.bind("<Double-Button-1>", self.rename_selected_audio)
+        self.audio_list.bind("<Delete>", self.delete_selected_audio) 
         self.audio_list.pack(side='left', fill='both', expand=True, padx=0, pady=0)
         self.update_audio_list()
 
@@ -264,20 +267,23 @@ class AudioRecorder:
         else:
             self.update_status("No audio file selected.")
 
-    def delete_selected_audio(self):
+    def delete_selected_audio(self, event=None):
         selected_audio = self.audio_list.get(self.audio_list.curselection())
         if selected_audio:
             os.remove(selected_audio)
             self.update_audio_list()
     
-    def rename_selected_audio(self):
+    def rename_selected_audio(self, event=None):
         selected_audio = self.audio_list.get(self.audio_list.curselection())
         if selected_audio:
-            new_name = filedialog.asksaveasfilename(defaultextension=".wav", initialfile=selected_audio)
+            new_name = simpledialog.askstring("Rename", "Enter new name:", initialvalue=selected_audio)
             if new_name:
-                new_filename = os.path.join(".", new_name)
-                os.rename(selected_audio, new_filename)
+                # Append '.wav' extension if not already present
+                if not new_name.endswith('.wav'):
+                    new_name += '.wav'
+                os.rename(selected_audio, new_name)
                 self.update_audio_list()
+
 
     def toggle_recording(self):
         if self.recording:
