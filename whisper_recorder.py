@@ -4,12 +4,14 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from scipy.signal import savgol_filter
+import tkinter.messagebox as messagebox
 import pyaudio
 import wave
 import audioop
 import datetime
 import threading
 import psutil
+import shutil
 import traceback
 import datetime
 import os
@@ -29,6 +31,7 @@ class AudioRecorder:
         self.root.geometry("1400x800")
         self.root.bind('<Button-1>', self.hide_audio_list_popup)
         self.root.bind('<Escape>', lambda event: self.root.quit())
+        self.root.bind('<space>', self.toggle_recording)
         
         # Styling
         style = ttk.Style()
@@ -270,17 +273,10 @@ class AudioRecorder:
     def rename_selected_audio(self):
         selected_audio = self.audio_list.get(self.audio_list.curselection())
         if selected_audio:
-            new_name = filedialog.asksaveasfilename(defaultextension=".wav")
+            new_name = filedialog.asksaveasfilename(defaultextension=".wav", initialfile=selected_audio)
             if new_name:
-                os.rename(selected_audio, new_name)
-                self.update_audio_list()
-
-    def rename_selected_audio(self):
-        selected_audio = self.audio_list.get(self.audio_list.curselection())
-        if selected_audio:
-            new_name = filedialog.asksaveasfilename(defaultextension=".wav")
-            if new_name:
-                os.rename(selected_audio, new_name)
+                new_filename = os.path.join(".", new_name)
+                os.rename(selected_audio, new_filename)
                 self.update_audio_list()
 
     def toggle_recording(self):
@@ -288,10 +284,13 @@ class AudioRecorder:
             self.recording_indicator.itemconfig(self.recording_dot, fill='white')
             self.recording = False
             self.record_button.config(text='Record')
-            self.save_audio()
-            self.update_audio_list()
             self.line.set_color('gray')
             self.reset_plot()
+
+            response = messagebox.askquestion("Save Recording", "Do you want to save the recorded audio?")
+            if response == "yes":
+                self.save_audio()
+                self.update_audio_list()
         else:
             self.filename = f'audio_{str(self.record_id).zfill(3)}.wav'
             self.record_id += 1
@@ -356,7 +355,10 @@ class AudioRecorder:
     def upload_wav(self):
         filename = filedialog.askopenfilename(filetypes=[('WAV Files', '*.wav')])
         if filename:
-            self.filename = filename
+            basename = os.path.basename(filename)
+            new_filename = os.path.join(".", basename)
+            shutil.copyfile(filename, new_filename)
+            self.filename = new_filename
             self.update_status(f"Uploaded {self.filename}")
             self.update_audio_list()
 
