@@ -4,8 +4,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from scipy.signal import savgol_filter
-import tkinter.messagebox as messagebox
 from tkinter import simpledialog
+import tkinter.messagebox as messagebox
 import pyaudio
 import wave
 import audioop
@@ -41,6 +41,15 @@ class AudioRecorder:
         style.configure('TScale', font=('Arial', 16), foreground='black')
         style.configure('TMenubutton', font=('Arial', 16), foreground='black')
 
+        # Whisper model options
+        self.models = [
+            {"name": "tiny", "ram": 1},
+            {"name": "base", "ram": 1},
+            {"name": "small", "ram": 2},
+            {"name": "medium", "ram": 5},
+            {"name": "large", "ram": 10},
+        ]
+
        
         self.filename = None
         self.transcript_file = 'transcript.txt'
@@ -53,25 +62,41 @@ class AudioRecorder:
         self.recording = False
         self.frames = []
         self.record_id = 0
-        self.model = 'tiny'
 
-        # Frame for the status bar
+        # Set current model at startup
+        self.model = (self.models[0])
+
+        mem_info = psutil.virtual_memory()
+        self.total = mem_info.total / (1024 ** 3)  
+        self.available = mem_info.available / (1024 ** 3) 
+
+        ## Status Bar
         status_frame = tk.Frame(root, bg="#3d3d3d")
         status_frame.pack(fill=tk.X, side=tk.BOTTOM)
+
+        # Configure grid for status_frame
+        status_frame.columnconfigure(0, weight=1)
+        status_frame.columnconfigure(1, weight=0)
 
         # Status bar at the left side of the frame
         self.status_var = tk.StringVar()
         self.status_bar = tk.Label(status_frame, textvariable=self.status_var, bd=1, fg='white', bg="#3d3d3d", relief=tk.FLAT, anchor=tk.W)
-        self.status_bar.grid(row=1, column=0, sticky='w')
+        self.status_bar.grid(row=0, column=0, sticky='w')
 
-        # Popup menu
+        # info on the right side of the status bar
+        self.info_var = tk.StringVar()
+        self.info_var.set(f"{self.model} | RAM: {round(self.available, 1)} / {round(self.total, 1)}")
+        self.info_bar = tk.Label(status_frame, textvariable=self.info_var, bd=1, fg='white', bg="#3d3d3d", relief=tk.FLAT, anchor=tk.E)
+        self.info_bar.grid(row=0, column=1, sticky='e')
+
+        ## Popup menu
         self.popup = tk.Menu(self.root, tearoff=0)
         self.popup.add_command(label="Transcribe", command=lambda: self.transcribe_selected_audio())
         self.popup.add_command(label="Delete", command=lambda: self.delete_selected_audio())
         self.popup.add_command(label="Rename", command=lambda: self.rename_selected_audio())
         self.popup.bind("<FocusOut>", self.hide_audio_list_popup)
         
-        # Menubar
+        ## Menubar
         menubar = tk.Menu(root)
         filemenu = tk.Menu(menubar, tearoff=0)
         filemenu.add_command(label="Upload Audio", command=self.upload_wav)
@@ -91,45 +116,14 @@ class AudioRecorder:
         if default_device:
             self.select_device(default_device) 
 
-        ## Current Model Info
-        self.model_info_var = tk.StringVar()
-        self.model_info_var.set(f"Current whisper model: {self.model}")
-        self.model_info_label = tk.Label(status_frame, textvariable=self.model_info_var, bd=1, fg='white', bg="#3d3d3d", relief=tk.FLAT, anchor='center')
-        self.model_info_label.grid(row=1, column=2)
-
-        ## RAM Stuff 
-        # RAM info at the right side of the frame
-        self.ram_info_var = tk.StringVar()
-        self.ram_info_bar = tk.Label(status_frame, textvariable=self.ram_info_var, bd=1, fg='white', bg="#3d3d3d", relief=tk.FLAT, anchor=tk.E)
-        self.ram_info_bar.grid(row=1, column=3, sticky='e')
-
-        mem_info = psutil.virtual_memory()
-        self.total = mem_info.total / (1024 ** 3)  
-        self.available = mem_info.available / (1024 ** 3) 
-        self.ram_info_var.set(f"RAM: {round(self.available, 1)} / {round(self.total, 1)}")
-
-        status_frame.grid_columnconfigure(0, weight=0)
-        status_frame.grid_columnconfigure(1, weight=0)
-        status_frame.grid_columnconfigure(2, weight=3)
-
         ##  Model menu
         modelmenu = tk.Menu(menubar, tearoff=0)
 
-        # Model options
-        self.models = [
-            {"name": "tiny", "ram": 1},
-            {"name": "base", "ram": 1},
-            {"name": "small", "ram": 2},
-            {"name": "medium", "ram": 5},
-            {"name": "large", "ram": 10},
-        ]
-
         # Add each model to the menu
-        default_model = self.models[0]  # Select 'tiny' model by default
         for model in self.models:
-            state = "normal" if model["ram"] <= self.available/2 else "disabled"
+            state = "normal" if model["ram"] <= self.available/3 else "disabled"
             modelmenu.add_command(label=f"{model['name']} ({model['ram']}GB of VRAM required)", command=lambda m=model: self.select_model(m), state=state)
-        self.select_model(default_model)  # Select the default model
+        self.select_model(self.model)  # Select the default model
 
         menubar.add_cascade(label="Model", menu=modelmenu)
 
@@ -227,11 +221,11 @@ class AudioRecorder:
 
     def select_model(self, model):
         self.model = model
-        self.update_status(f"Model switched to {model['name']}")
-
+        self.update_status(f"Model set to {self.model['name']}")
 
     def update_status(self, status):
         self.status_var.set(status)
+        self.info_var.set(f"{self.model['name']} | RAM: {round(self.available, 1)} / {round(self.total, 1)}")
 
     def reset_plot(self):
         straight_line = np.zeros(self.CHUNK)
