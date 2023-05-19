@@ -56,13 +56,13 @@ class AudioRecorder:
         self.model = 'tiny'
 
         # Frame for the status bar
-        status_frame = tk.Frame(root)
-        status_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        status_frame = tk.Frame(root, bg="#3d3d3d")
+        status_frame.pack(fill=tk.X, side=tk.BOTTOM)
 
         # Status bar at the left side of the frame
         self.status_var = tk.StringVar()
-        self.status_bar = tk.Label(status_frame, textvariable=self.status_var, bd=1, relief=tk.SUNKEN, anchor=tk.W)
-        self.status_bar.pack(side=tk.LEFT, fill=tk.X)
+        self.status_bar = tk.Label(status_frame, textvariable=self.status_var, bd=1, fg='white', bg="#3d3d3d", relief=tk.FLAT, anchor=tk.W)
+        self.status_bar.grid(row=1, column=0, sticky='w')
 
         # Popup menu
         self.popup = tk.Menu(self.root, tearoff=0)
@@ -91,16 +91,26 @@ class AudioRecorder:
         if default_device:
             self.select_device(default_device) 
 
+        ## Current Model Info
+        self.model_info_var = tk.StringVar()
+        self.model_info_var.set(f"Current whisper model: {self.model}")
+        self.model_info_label = tk.Label(status_frame, textvariable=self.model_info_var, bd=1, fg='white', bg="#3d3d3d", relief=tk.FLAT, anchor='center')
+        self.model_info_label.grid(row=1, column=2)
+
         ## RAM Stuff 
         # RAM info at the right side of the frame
         self.ram_info_var = tk.StringVar()
-        self.ram_info_bar = tk.Label(status_frame, textvariable=self.ram_info_var, bd=1, relief=tk.SUNKEN, anchor=tk.E)
-        self.ram_info_bar.pack(side=tk.RIGHT, fill=tk.X)
+        self.ram_info_bar = tk.Label(status_frame, textvariable=self.ram_info_var, bd=1, fg='white', bg="#3d3d3d", relief=tk.FLAT, anchor=tk.E)
+        self.ram_info_bar.grid(row=1, column=3, sticky='e')
 
         mem_info = psutil.virtual_memory()
         self.total = mem_info.total / (1024 ** 3)  
         self.available = mem_info.available / (1024 ** 3) 
         self.ram_info_var.set(f"RAM: {round(self.available, 1)} / {round(self.total, 1)}")
+
+        status_frame.grid_columnconfigure(0, weight=0)
+        status_frame.grid_columnconfigure(1, weight=0)
+        status_frame.grid_columnconfigure(2, weight=3)
 
         ##  Model menu
         modelmenu = tk.Menu(menubar, tearoff=0)
@@ -126,43 +136,39 @@ class AudioRecorder:
 
         # Frame for buttons
         button_frame = ttk.Frame(root)
-        button_frame.pack(side='top', fill='x', padx=5, pady=5)
+        button_frame.pack(side='top', fill='x')
 
         # Recording indicator
         self.recording_indicator = tk.Canvas(button_frame, width=30, height=30, bd=0, highlightthickness=0)
         self.recording_dot = self.recording_indicator.create_oval(5, 5, 25, 25, fill='gray')
-        self.recording_indicator.pack(side='left', padx=5)
+        self.recording_indicator.pack(side='left')
 
         # Record button
-        self.record_button = ttk.Button(button_frame, text='record', command=self.toggle_recording)
-        self.record_button.pack(side='left', padx=5)
+        self.record_button = tk.Button(button_frame,
+                                        text='Record',
+                                        command=self.toggle_recording,
+                                        width=6,
+                                        activebackground="green",
+                                        bd=1,
+                                        relief=tk.FLAT,
+                                        font=("Arial", 16),
+                                        cursor="hand2"
+                                        )
+        self.record_button.pack(side='left')
+        
 
         # Upload button
-        self.upload_button = ttk.Button(button_frame, text='upload', command=self.upload_wav)
-        self.upload_button.pack(side='right', padx=5)
-
-        ## Silence threshold slider
-        # Frame to hold slider_frame
-        grid_frame = tk.Frame(root)
-        grid_frame.pack(side='top', fill='x', padx=5, pady=5)
-
-        # Slider frame
-        slider_frame = ttk.Frame(grid_frame)
-        slider_frame.grid(sticky='ew')
-
-        # Make the column expand
-        grid_frame.grid_columnconfigure(0, weight=1)
-
-        self.silence_slider = ttk.Scale(slider_frame, from_=1, to=5, orient='horizontal', command=self.update_silence_duration)
-        self.silence_slider.grid(row=0, column=0, sticky='ew')
-
-        # Make the slider's column expand
-        slider_frame.grid_columnconfigure(0, weight=1)
-
-        self.silence_slider.set(self.SILENCE_DURATION_THRESHOLD)
-
-        self.silence_label = ttk.Label(slider_frame, text="Silence Duration (s): 5")
-        self.silence_label.grid(row=0, column=1, padx=5)
+        self.upload_button = tk.Button(button_frame,
+                                        text='Upload',
+                                        command=self.upload_wav,
+                                        width=6,
+                                        activebackground="green",
+                                        bd=1,
+                                        relief=tk.FLAT,
+                                        font=("Arial", 16),
+                                        cursor="hand2" 
+                                        )
+        self.upload_button.pack(side='right')
 
         # Main area frame
         main_frame = tk.Frame(root)
@@ -200,8 +206,6 @@ class AudioRecorder:
         self.transcribe_button = ttk.Button(root, text='Transcribe', command=self.transcribe_selected_audio)
         self.transcribe_button.pack(side='bottom', fill='x', padx=0, pady=0)
         
-
-
     def get_available_devices(self):
         p = pyaudio.PyAudio()
         devices = []
@@ -352,11 +356,6 @@ class AudioRecorder:
         wf.close()
         self.frames = []
         self.update_status(f"Saved audio to {os.path.abspath(self.filename)}")
-
-
-    def update_silence_duration(self, value):
-        self.SILENCE_DURATION_THRESHOLD = int(float(value))
-        self.silence_label.config(text=f"Silence Duration (s): {int(float(value))}")
 
 
     def upload_wav(self):
